@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>學校差旅費計算系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #f0f4f8;
+        }
+
+        .custom-btn {
+            transition: all 0.2s ease-in-out;
+        }
+
+        .custom-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        #results-preview {
+            transition: all 0.3s ease-in-out;
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+        }
+
+        #results-preview.show {
+            max-height: 1000px;
+            opacity: 1;
+        }
+
+        /* 報表 Modal 樣式 */
+        #report-modal-content table,
+        #report-modal-content th,
+        #report-modal-content td {
+            border: 1px solid black;
+        }
+
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 1cm;
+            }
+
+            html,
+            body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+                width: auto !important;
+                height: auto !important;
+                overflow: visible !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            body>*:not(#report-modal) {
+                display: none !important;
+                visibility: hidden !important;
+            }
+
+            #report-modal {
+                display: block !important;
+                visibility: visible !important;
+                position: relative !important;
+                background: none !important;
+                width: 100% !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
+                inset: auto !important;
+                max-width: none !important;
+                max-height: none !important;
+                overflow: visible !important;
+            }
+
+            #report-modal>div {
+                visibility: visible !important;
+                display: block !important;
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: none !important;
+                max-height: none !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+
+            #report-modal-content {
+                display: block !important;
+                visibility: visible !important;
+                width: 100% !important;
+                height: auto !important;
+                font-size: 10pt;
+                line-height: 1.4;
+                border: none !important;
+                box-shadow: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: visible !important;
+            }
+
+            #report-modal-content h2 {
+                font-size: 14pt;
+                margin-bottom: 0.5em;
+            }
+
+            #report-modal-content h3 {
+                font-size: 12pt;
+                margin-bottom: 0.5em;
+            }
+
+            #report-print-btn,
+            #report-close-btn {
+                display: none !important;
+            }
+
+            #report-modal-content table {
+                font-size: 9pt;
+                width: 100%;
+                border-collapse: collapse;
+                table-layout: auto;
+                page-break-inside: auto;
+            }
+
+            #report-modal-content th,
+            #report-modal-content td {
+                padding: 2px 4px;
+                word-wrap: break-word;
+                height: auto !important;
+            }
+
+            #report-modal-content tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+                height: auto !important;
+            }
+
+            #report-modal-content tfoot tr:last-child td {
+                min-height: 4em;
+                vertical-align: top;
+            }
+
+            #report-modal-content div:last-of-type {
+                page-break-before: avoid !important;
+                margin-top: 1em;
+            }
+        }
+    </style>
+</head>
+
+<body class="p-4 bg-gray-100 flex flex-col min-h-screen">
+
+    <div id="capture-area" class="w-full max-w-5xl mx-auto bg-white rounded-2xl shadow-xl p-6 md:p-8">
+
+        <header class="text-center mb-6">
+            <h1 id="main-title" class="text-2xl md:text-3xl font-bold text-gray-800">
+                差旅費紀錄系統
+            </h1>
+        </header>
+
+        <main>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                <div class="space-y-4">
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-4">
+                        <p class="text-sm font-bold text-gray-600">報表基本資料</p>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <!-- Row 1 -->
+                            <div class="col-span-1">
+                                <label for="report-job-title"
+                                    class="block text-sm font-medium text-gray-700 mb-1">職別</label>
+                                <input type="text" id="report-job-title" placeholder="如：資訊課"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="col-span-1">
+                                <label for="report-name" class="block text-sm font-medium text-gray-700 mb-1">姓名</label>
+                                <input type="text" id="report-name" placeholder="請輸入姓名"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="col-span-2">
+                                <label for="report-trip-location"
+                                    class="block text-sm font-medium text-gray-700 mb-1">出差地點</label>
+                                <input type="text" id="report-trip-location" placeholder="請輸入出差地點"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+
+                            <!-- Row 2 -->
+                            <div class="col-span-4">
+                                <label for="report-trip-reason"
+                                    class="block text-sm font-medium text-gray-700 mb-1">出差事由</label>
+                                <input type="text" id="report-trip-reason" placeholder="請輸入出差事由"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+
+                            <!-- Row 3 -->
+                            <div class="col-span-2">
+                                <label for="report-trip-start"
+                                    class="block text-sm font-medium text-gray-700 mb-1">出差日期起</label>
+                                <input type="date" id="report-trip-start"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="col-span-2">
+                                <label for="report-trip-end"
+                                    class="block text-sm font-medium text-gray-700 mb-1">出差日期迄</label>
+                                <input type="date" id="report-trip-end"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+
+                            <!-- Row 4 -->
+                            <div class="col-span-4">
+                                <label for="report-receipt-count"
+                                    class="block text-sm font-medium text-gray-700 mb-1">票據張數</label>
+                                <input type="number" id="report-receipt-count" value="0" min="0"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-4">
+                        <p class="text-sm font-bold text-gray-600">差旅紀錄資料</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="travel-date"
+                                    class="block text-sm font-medium text-gray-700 mb-1">差旅紀錄出差日期</label>
+                                <input type="date" id="travel-date"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label for="description" class="block text-sm font-medium text-gray-700 mb-1">工作記要
+                                </label>
+                                <input type="text" id="description" placeholder="例如：支援分館"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+
+                        <div id="out-of-county-section" class="space-y-4 pt-4 border-t border-gray-200">
+                            <p class="text-sm font-bold text-gray-600 bg-gray-100 p-2 rounded-md">行程</p>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label for="start2" class="block text-sm font-medium text-gray-700 mb-1">起點</label>
+                                    <input type="text" id="start2" placeholder="請輸入起點"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label for="end2" class="block text-sm font-medium text-gray-700 mb-1">終點</label>
+                                    <input type="text" id="end2" placeholder="請輸入終點"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 flex flex-wrap gap-x-6 gap-y-2 border-t border-gray-200 mt-2 pt-2">
+                            <div class="flex items-center">
+                                <input id="transport-cost-toggle" type="checkbox" checked
+                                    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                <label for="transport-cost-toggle"
+                                    class="ml-2 block text-sm font-medium text-gray-900">是否申請交通費用？</label>
+                            </div>
+
+
+                            <div class="flex items-center">
+                                <input id="misc-fee-toggle" type="checkbox"
+                                    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                <label for="misc-fee-toggle"
+                                    class="ml-2 block text-sm font-medium text-gray-900">是否申請雜費？</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input id="lodging-fee-toggle" type="checkbox"
+                                    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                <label for="lodging-fee-toggle"
+                                    class="ml-2 block text-sm font-medium text-gray-900">是否申請住宿費？</label>
+                            </div>
+                        </div>
+
+                        <div id="transport-section" class="pt-2 border-t border-gray-100 grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="transport-type"
+                                    class="block text-sm font-medium text-gray-700 mb-1">交通工具</label>
+                                <select id="transport-type"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+
+                                    <option value="計程車">計程車</option>
+                                    <option value="汽車">汽車</option>
+                                    <option value="火車">火車</option>
+                                    <option value="高鐵">高鐵</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="transport-cost"
+                                    class="block text-sm font-medium text-gray-700 mb-1">交通費用</label>
+                                <div class="relative"><span
+                                        class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">NT$</span>
+                                    <input type="number" id="transport-cost" value="0" min="0"
+                                        class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="misc-fee-section" class="hidden pt-2 border-t border-gray-100">
+                            <div>
+                                <label for="misc-fee-cost"
+                                    class="block text-sm font-medium text-gray-700 mb-1">雜費金額</label>
+                                <div class="relative"><span
+                                        class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">NT$</span>
+                                    <input type="number" id="misc-fee-cost" value="0" min="0"
+                                        class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="lodging-fee-section" class="hidden pt-2 border-t border-gray-100">
+                            <div>
+                                <label for="lodging-fee-cost"
+                                    class="block text-sm font-medium text-gray-700 mb-1">住宿費金額</label>
+                                <div class="relative"><span
+                                        class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">NT$</span>
+                                    <input type="number" id="lodging-fee-cost" value="0" min="0"
+                                        class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="action-buttons" class="flex space-x-2 pt-2">
+                            <button id="calculate-btn"
+                                class="w-full bg-blue-600 text-white font-bold py-2.5 px-4 rounded-lg shadow-md hover:bg-blue-700 custom-btn">計算差旅費</button>
+                            <button id="add-record-btn"
+                                class="hidden w-1/2 bg-green-600 text-white font-bold py-2.5 px-4 rounded-lg shadow-md hover:bg-green-700 custom-btn">加入紀錄</button>
+                            <button id="modify-btn"
+                                class="hidden w-1/2 bg-gray-500 text-white font-bold py-2.5 px-4 rounded-lg shadow-md hover:bg-gray-600 custom-btn">修改資料</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="error-message" class="hidden mt-4 text-center text-red-600 bg-red-100 p-3 rounded-lg"></div>
+
+            <div id="results-preview" class="mt-6">
+                <div class="bg-blue-50 border-l-4 border-blue-500 text-blue-900 rounded-lg p-4">
+                    <h3 class="text-lg font-bold mb-2">費用計算預覽</h3>
+                    <div id="preview-details"></div>
+                </div>
+            </div>
+
+            <div id="records-section" class="mt-10">
+                <div class="flex flex-wrap gap-4 justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-gray-700">差旅紀錄列表</h2>
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <div class="flex items-center gap-1 text-sm">
+                            <label for="report-roc-year">報表年份(民國):</label>
+                            <input type="number" id="report-roc-year"
+                                class="w-20 px-2 py-1 border border-gray-300 rounded-md shadow-sm text-sm">
+                            <label for="report-month-start">月份從:</label>
+                            <input type="number" id="report-month-start" min="1" max="12"
+                                class="w-16 px-2 py-1 border border-gray-300 rounded-md shadow-sm text-sm">
+                            <label for="report-month-end">至:</label>
+                            <input type="number" id="report-month-end" min="1" max="12"
+                                class="w-16 px-2 py-1 border border-gray-300 rounded-md shadow-sm text-sm">
+                        </div>
+                        <button id="generate-report-btn"
+                            class="bg-sky-500 text-white text-sm font-bold py-2 px-4 rounded-lg hover:bg-sky-600 custom-btn">產生報支清單</button>
+                        <button id="import-csv-btn"
+                            class="bg-blue-500 text-white text-sm font-bold py-2 px-4 rounded-lg hover:bg-blue-600 custom-btn">匯入CSV檔案</button>
+                        <input type="file" id="csv-import-input" accept=".csv" class="hidden">
+                        <button id="export-csv-btn"
+                            class="bg-teal-500 text-white text-sm font-bold py-2 px-4 rounded-lg hover:bg-teal-600 custom-btn">匯出CSV檔案</button>
+                        <button id="clear-records-btn"
+                            class="bg-red-500 text-white text-sm font-bold py-2 px-4 rounded-lg hover:bg-red-600 custom-btn">清除所有紀錄</button>
+                        <button id="screenshot-btn"
+                            class="bg-gray-500 text-white font-bold p-2.5 rounded-lg hover:bg-gray-600 custom-btn flex items-center justify-center"
+                            title="擷取畫面存檔">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20"
+                                fill="currentColor">
+                                <path
+                                    d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="table-container bg-white rounded-lg shadow">
+                    <table class="w-full text-sm text-left text-gray-600">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+                            <tr>
+                                <th scope="col" class="py-3 px-6">日期</th>
+                                <th scope="col" class="py-3 px-6">工作記要</th>
+                                <th scope="col" class="py-3 px-6">路程</th>
+                                <th scope="col" class="py-3 px-6 text-right">交通工具</th>
+                                <th scope="col" class="py-3 px-6 text-right">住宿費</th>
+                                <th scope="col" class="py-3 px-6 text-right">雜費</th>
+                                <th scope="col" class="py-3 px-6 text-right">小計</th>
+                                <th scope="col" class="py-3 px-6 text-center">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="records-body">
+                            <tr class="bg-white">
+                                <td colspan="8" class="py-6 px-6 text-center text-gray-400">尚無任何紀錄</td>
+                            </tr>
+                        </tbody>
+                        <tfoot class="font-semibold text-gray-800 bg-gray-200">
+                            <tr>
+                                <td colspan="7" class="py-3 px-6 text-right text-base">總計金額：</td>
+                                <td id="grand-total" class="py-3 px-6 text-right text-xl text-green-600">NT$ 0</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <footer class="mt-8 mb-4 text-center text-gray-500 text-sm">
+        <p>
+            本系統由 <strong>曾明傑</strong> 設計開發，<strong></strong>KNS hotel資訊課</strong>修改
+        </p>
+    </footer>
+
+    <div id="report-modal"
+        class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-4xl w-full max-h-full overflow-auto">
+            <div id="report-modal-content" class="text-black">
+            </div>
+            <div class="text-center mt-6 space-x-4">
+                <button id="report-print-btn"
+                    class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 custom-btn">列印此報表</button>
+                <button id="report-close-btn"
+                    class="bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-lg hover:bg-gray-400 custom-btn">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =========================================================
+        // 🏫 學校專屬設定區 (其他老師請修改這裡即可)
+        // =========================================================
+
+        // 1. 學校名稱 (會顯示在網頁標題與報表中)
+        const SCHOOL_NAME = "康正旅館(股)公司";
+
+        // 2. 學校完整地址 (預設起點名稱)
+        const SCHOOL_ADDRESS = "高雄市新興區同愛街30號";
+
+        // 3. 學校經緯度座標 (可在 Google Maps 上對地點按右鍵取得：左邊是lat緯度, 右邊是lng經度)
+        // 格式：{ lat: 緯度, lng: 經度 }
+        const SCHOOL_LOCATION = {
+            lat: 22.656666,
+            lng: 120.92051292679584
+        };
+
+        // =========================================================
+        // ⚠️ 以下程式碼建議不要隨意更動，以免功能異常
+        // =========================================================
+
+        let travelRecords = [];
+        let currentCalculation = null;
+
+        // Initialize on load
+        window.addEventListener('load', init);
+
+        function init() {
+            // 自動更新網頁標題與 H1
+            document.getElementById('main-title').innerText = SCHOOL_NAME + " 出差旅費報告系統";
+            document.title = SCHOOL_NAME + " 出差旅費報告系統";
+
+            document.getElementById('travel-date').valueAsDate = new Date();
+
+            // Set default report date
+            const currentYear = new Date().getFullYear();
+            const currentMonth = new Date().getMonth() + 1;
+            document.getElementById('report-roc-year').value = currentYear - 1911;
+            document.getElementById('report-month-start').value = currentMonth;
+            document.getElementById('report-month-end').value = currentMonth;
+        }
+
+        function setPointData(type, lat, lng, statusText) {
+            // Function functionality removed but keeping placeholder to avoid reference errors if any old code persists
+        }
+
+        document.getElementById('calculate-btn').addEventListener('click', calculateRoute);
+        document.getElementById('add-record-btn').addEventListener('click', addRecord);
+        document.getElementById('modify-btn').addEventListener('click', modifyCalculation);
+        document.getElementById('screenshot-btn').addEventListener('click', takeScreenshot);
+        document.getElementById('clear-records-btn').addEventListener('click', clearAllRecords);
+        document.getElementById('export-csv-btn').addEventListener('click', exportToCSV);
+        document.getElementById('generate-report-btn').addEventListener('click', generateReport);
+        document.getElementById('report-print-btn').addEventListener('click', () => window.print());
+        document.getElementById('report-close-btn').addEventListener('click', () =>
+            document.getElementById('report-modal').classList.add('hidden'));
+        document.getElementById('import-csv-btn').addEventListener('click', () => document.getElementById('csv-import-input').click());
+        document.getElementById('csv-import-input').addEventListener('change', handleCSVImport);
+
+
+        // From home toggle and out of county toggle listeners removed
+
+        // Out of county toggle listener removed
+
+        document.getElementById('transport-cost-toggle').addEventListener('change', function () {
+            const section = document.getElementById('transport-section');
+            if (this.checked) {
+                // Uncheck other toggles
+                document.getElementById('misc-fee-toggle').checked = false;
+                document.getElementById('misc-fee-section').classList.add('hidden');
+                document.getElementById('misc-fee-section').style.display = 'none';
+                document.getElementById('misc-fee-cost').value = '0';
+
+                document.getElementById('lodging-fee-toggle').checked = false;
+                document.getElementById('lodging-fee-section').classList.add('hidden');
+                document.getElementById('lodging-fee-section').style.display = 'none';
+                document.getElementById('lodging-fee-cost').value = '0';
+
+                section.classList.remove('hidden');
+                section.style.display = 'grid';
+            } else {
+                // Prevent unchecking if it's the only one checked
+                const miscChecked = document.getElementById('misc-fee-toggle').checked;
+                const lodgingChecked = document.getElementById('lodging-fee-toggle').checked;
+                if (!miscChecked && !lodgingChecked) {
+                    this.checked = true; // Re-check to ensure at least one is selected
+                    return;
+                }
+                section.classList.add('hidden');
+                section.style.display = 'none';
+                document.getElementById('transport-type').value = '1';
+                document.getElementById('transport-cost').value = '0';
+            }
+        });
+
+        document.getElementById('misc-fee-toggle').addEventListener('change', function () {
+            const section = document.getElementById('misc-fee-section');
+            if (this.checked) {
+                // Uncheck other toggles
+                document.getElementById('transport-cost-toggle').checked = false;
+                document.getElementById('transport-section').classList.add('hidden');
+                document.getElementById('transport-section').style.display = 'none';
+                document.getElementById('transport-type').value = '1';
+                document.getElementById('transport-cost').value = '0';
+
+                document.getElementById('lodging-fee-toggle').checked = false;
+                document.getElementById('lodging-fee-section').classList.add('hidden');
+                document.getElementById('lodging-fee-section').style.display = 'none';
+                document.getElementById('lodging-fee-cost').value = '0';
+
+                section.classList.remove('hidden');
+                section.style.display = 'block';
+            } else {
+                // Prevent unchecking if it's the only one checked
+                const transportChecked = document.getElementById('transport-cost-toggle').checked;
+                const lodgingChecked = document.getElementById('lodging-fee-toggle').checked;
+                if (!transportChecked && !lodgingChecked) {
+                    this.checked = true; // Re-check to ensure at least one is selected
+                    return;
+                }
+                section.classList.add('hidden');
+                section.style.display = 'none';
+                document.getElementById('misc-fee-cost').value = '0';
+            }
+        });
+        document.getElementById('lodging-fee-toggle').addEventListener('change', function () {
+            const section = document.getElementById('lodging-fee-section');
+            if (this.checked) {
+                // Uncheck other toggles
+                document.getElementById('transport-cost-toggle').checked = false;
+                document.getElementById('transport-section').classList.add('hidden');
+                document.getElementById('transport-section').style.display = 'none';
+                document.getElementById('transport-type').value = '1';
+                document.getElementById('transport-cost').value = '0';
+
+                document.getElementById('misc-fee-toggle').checked = false;
+                document.getElementById('misc-fee-section').classList.add('hidden');
+                document.getElementById('misc-fee-section').style.display = 'none';
+                document.getElementById('misc-fee-cost').value = '0';
+
+                section.classList.remove('hidden');
+                section.style.display = 'block';
+            } else {
+                // Prevent unchecking if it's the only one checked
+                const transportChecked = document.getElementById('transport-cost-toggle').checked;
+                const miscChecked = document.getElementById('misc-fee-toggle').checked;
+                if (!transportChecked && !miscChecked) {
+                    this.checked = true; // Re-check to ensure at least one is selected
+                    return;
+                }
+                section.classList.add('hidden');
+                section.style.display = 'none';
+                document.getElementById('lodging-fee-cost').value = '0';
+            }
+        });
+        document.getElementById('records-body').addEventListener('click', e => {
+            if (e.target.classList.contains('delete-btn')) {
+                const recordId = parseInt(e.target.dataset.id, 10);
+                deleteRecord(recordId);
+            }
+        });
+
+        // 數字轉大寫中文
+        function numberToChinese(n) {
+            const fraction = ['角', '分'];
+            const digit = ['零', '壹', '貳', '參', '肆', '伍', '陸', '柒', '捌', '玖'];
+            const unit = [['元', '萬', '億'], ['', '拾', '佰', '仟']];
+            let head = n < 0 ? '欠' : '';
+            n = Math.abs(n);
+            let s = '';
+            for (let i = 0; i < fraction.length; i++) {
+                s += (digit[Math.floor(Math.round(n * 10 * Math.pow(10, i))) % 10] + fraction[i]).replace(/零./, '');
+            }
+            s = s || '整';
+            n = Math.floor(n);
+            for (let i = 0; i < unit[0].length && n > 0; i++) {
+                let p = '';
+                for (let j = 0; j < unit[1].length && n > 0; j++) {
+                    p = digit[n % 10] + unit[1][j] + p;
+                    n = Math.floor(n / 10);
+                }
+                s = p.replace(/(零.)*零$/, '').replace(/^$/, '零') + unit[0][i] + s;
+            }
+            return head + s.replace(/(零.)*零元/, '元')
+                .replace(/(零.)+/g, '零')
+                .replace(/^整$/, '零元整');
+        }
+
+        function numberToChinese2(num) {
+            if (num === 0) return "零元整";
+
+            const digits = ["零", "壹", "貳", "參", "肆", "伍", "陸", "柒", "捌", "玖"];
+
+            // 定義每一位數的絕對單位
+            const units = [
+                { unit: "元", val: 1 },
+                { unit: "拾", val: 10 },
+                { unit: "佰", val: 100 },
+                { unit: "仟", val: 1000 },
+                { unit: "萬", val: 10000 },
+                { unit: "拾萬", val: 100000 },
+                { unit: "佰萬", val: 1000000 },
+                { unit: "仟萬", val: 10000000 },
+                { unit: "億", val: 100000000 }
+            ];
+
+            let result = "";
+            let tempNum = num;
+
+            // 從最高單位開始往回跑
+            for (let i = units.length - 1; i >= 0; i--) {
+                let currentUnit = units[i];
+                let count = Math.floor(tempNum / currentUnit.val);
+
+                if (count > 0) {
+                    // 如果是萬位以上的「拾」，強制顯示為「壹拾」
+                    // 這裡會將 110,000 拆解為 1個拾萬 + 1個萬
+                    result += digits[count] + currentUnit.unit;
+                    tempNum %= currentUnit.val;
+                }
+            }
+
+            // 處理結尾
+            if (!result.endsWith("元")) {
+                result += "元";
+            }
+
+            return result + "整";
+        }
+
+
+
+        // 格式化為中華民國日期
+        function formatROCDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return dateStr;
+            const y = date.getFullYear() - 1911;
+            const m = (date.getMonth() + 1).toString().padStart(2, '0');
+            const d = date.getDate().toString().padStart(2, '0');
+            return `${y} 年 ${m} 月 ${d} 日`;
+        }
+
+        // 智慧地址修正功能
+        function preprocessAddress(address) {
+            if (!address) return '';
+
+            // 移除可能重複輸入的 "台灣"
+            let processed = address.replace(/^台灣\s*/, '').replace(/^Taiwan\s*/, '');
+
+            // 常見口語地名 -> OSM 正式名稱對照表
+            const hsrMap = {
+                '台中高鐵': '高鐵台中站',
+                '臺中高鐵': '高鐵台中站',
+                '烏日高鐵': '高鐵台中站',
+                '新烏日高鐵': '高鐵台中站',
+                '台北高鐵': '台北車站',
+                '臺北高鐵': '台北車站',
+                '板橋高鐵': '板橋車站',
+                '桃園高鐵': '高鐵桃園站',
+                '新竹高鐵': '高鐵新竹站',
+                '六家高鐵': '高鐵新竹站',
+                '竹北高鐵': '高鐵新竹站',
+                '苗栗高鐵': '高鐵苗栗站',
+                '後龍高鐵': '高鐵苗栗站',
+                '彰化高鐵': '高鐵彰化站',
+                '田中高鐵': '高鐵彰化站',
+                '雲林高鐵': '高鐵雲林站',
+                '虎尾高鐵': '高鐵雲林站',
+                '嘉義高鐵': '高鐵嘉義站',
+                '太保高鐵': '高鐵嘉義站',
+                '台南高鐵': '高鐵台南站',
+                '臺南高鐵': '高鐵台南站',
+                '沙崙高鐵': '高鐵台南站',
+                '左營高鐵': '高鐵左營站',
+                '高雄高鐵': '高鐵左營站'
+            };
+
+            for (const [key, value] of Object.entries(hsrMap)) {
+                if (processed.includes(key)) {
+                    // 如果用戶輸入包含關鍵字，替換成正式名稱
+                    return value;
+                }
+            }
+            return processed;
+        }
+
+        async function getOSRMRoute(startCoords, endCoords) {
+            try {
+                const url =
+                    `https://router.project-osrm.org/route/v1/driving/${startCoords.lng},${startCoords.lat};${endCoords.lng},${endCoords.lat}?overview=full&geometries=geojson`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.code === 'Ok' && data.routes.length > 0) {
+                    return data.routes[0];
+                }
+                return null;
+            } catch (e) {
+                console.error("Routing error:", e);
+                return null;
+            }
+        }
+
+        async function calculateRoute() {
+            showError('');
+            const calculateBtn = document.getElementById('calculate-btn');
+            const originalBtnText = calculateBtn.innerText;
+            calculateBtn.innerText = '計算中...';
+            calculateBtn.disabled = true;
+
+            const isFromHome = false;
+
+            const transportType = document.getElementById('transport-type').value;
+            const transportCost = parseInt(document.getElementById('transport-cost').value, 10) || 0;
+            const applyMiscFee = document.getElementById('misc-fee-toggle').checked;
+            const miscFee = applyMiscFee ? (parseInt(document.getElementById('misc-fee-cost').value, 10)
+                || 0) : 0;
+            const applyLodgingFee = document.getElementById('lodging-fee-toggle').checked;
+            const lodgingFee = applyLodgingFee ?
+                (parseInt(document.getElementById('lodging-fee-cost').value, 10) || 0) : 0;
+
+            const start2 = document.getElementById('start2').value || '';
+            const end2 = document.getElementById('end2').value || '';
+
+            try {
+                currentCalculation = {
+                    id: Date.now(),
+                    date: document.getElementById('travel-date').value,
+                    description: document.getElementById('description').value || '未填寫',
+                    isFromHome,
+                    leg1: { start: '', end: '', distance: 0, cost: 0 },
+                    leg2: { start: start2, end: end2, distance: 0, cost: 0 },
+                    transportType: transportType,
+                    transportCost: transportCost,
+                    miscFee: miscFee,
+                    lodgingFee: lodgingFee,
+                };
+
+                const totalCost = calculateTotalCost(currentCalculation);
+                currentCalculation.totalCost = totalCost;
+
+                displayPreview(currentCalculation);
+                document.getElementById('calculate-btn').classList.add('hidden');
+                document.getElementById('add-record-btn').classList.remove('hidden');
+                document.getElementById('modify-btn').classList.remove('hidden');
+
+            } catch (error) {
+                showError('發生錯誤: ' + error.message);
+                currentCalculation = null;
+            } finally {
+                calculateBtn.innerText = originalBtnText;
+                calculateBtn.disabled = false;
+            }
+        }
+
+        function displayPreview(calc) {
+            const previewDetails = document.getElementById('preview-details');
+            let content = '<div class="space-y-2">';
+            if (calc.transportCost > 0) {
+                content += `
+                                <div class="p-2 bg-white/60 rounded-md">
+                                    <div class="flex justify-between items-center">
+                                        <span class="font-medium text-gray-800">${calc.transportType}費用</span>
+                                        <span class="font-bold text-blue-700">NT$
+                                            ${calc.transportCost.toLocaleString()}</span>
+                                    </div>
+                                </div>`;
+            }
+            if (calc.lodgingFee > 0) {
+                content += `
+                                <div class="p-2 bg-white/60 rounded-md">
+                                    <div class="flex justify-between items-center">
+                                        <span class="font-medium text-gray-800">住宿費</span>
+                                        <span class="font-bold text-blue-700">NT$
+                                            ${calc.lodgingFee.toLocaleString()}</span>
+                                    </div>
+                                </div>`;
+            }
+            if (calc.miscFee > 0) {
+                content += `
+                                <div class="p-2 bg-white/60 rounded-md">
+                                    <div class="flex justify-between items-center">
+                                        <span class="font-medium text-gray-800">雜費</span>
+                                        <span class="font-bold text-blue-700">NT$
+                                            ${calc.miscFee.toLocaleString()}</span>
+                                    </div>
+                                </div>`;
+            }
+            content += `
+                                <div class="text-right border-t border-blue-200 pt-2 mt-2">
+                                    <p class="text-sm font-semibold">費用總計</p>
+                                    <p class="text-xl font-bold text-green-600">NT$ ${calc.totalCost.toLocaleString()}
+                                    </p>
+                                </div>`;
+            content += '</div>'; // Correctly close the initial 'space-y-2' div
+            previewDetails.innerHTML = content;
+            document.getElementById('results-preview').classList.add('show');
+        }
+
+        function addRecord() {
+            if (!currentCalculation) return;
+            travelRecords.push(currentCalculation);
+            renderRecords();
+            clearInputFields();
+            resetActionButtons();
+        }
+
+        function modifyCalculation() {
+            document.getElementById('results-preview').classList.remove('show');
+            resetActionButtons();
+            currentCalculation = null;
+        }
+
+        function resetActionButtons() {
+            document.getElementById('calculate-btn').classList.remove('hidden');
+            document.getElementById('add-record-btn').classList.add('hidden');
+            document.getElementById('modify-btn').classList.add('hidden');
+        }
+
+        function calculateTotalCost(record) {
+            return (record.transportCost || 0) + (record.miscFee || 0) + (record.lodgingFee || 0);
+        }
+
+        function simplifyAddress(address) {
+            return address || '';
+        }
+
+
+        function renderRecords() {
+            const recordsBody = document.getElementById('records-body');
+            const grandTotalCell = document.getElementById('grand-total');
+            recordsBody.innerHTML = '';
+
+            if (travelRecords.length === 0) {
+                recordsBody.innerHTML = `<tr class="bg-white">
+                                <td colspan="8" class="py-6 px-6 text-center text-gray-400">尚無任何紀錄</td>
+                            </tr>`;
+                grandTotalCell.textContent = 'NT$ 0';
+                return;
+            }
+
+            let grandTotal = 0;
+            travelRecords.forEach(record => {
+                grandTotal += record.totalCost;
+                const row = document.createElement('tr');
+                row.className = 'bg-white border-b hover:bg-gray-50';
+
+                const startDisplay = simplifyAddress(record.leg1.start || (record.leg2 ? record.leg2.start :
+                    ''), record.isFromHome);
+                const endDisplay = simplifyAddress((record.leg2 ? record.leg2.end : '') || record.leg1.end);
+
+                let routeHtml = ``;
+                if (startDisplay && endDisplay) {
+                    routeHtml += `<div>${startDisplay} → ${endDisplay}</div>`;
+                }
+                if (record.leg2 && record.leg2.start) {
+                    routeHtml += `<div class="text-xs text-gray-500 mt-1">${simplifyAddress(record.leg2.start)}
+                                → ${simplifyAddress(record.leg2.end)}</div>`;
+                }
+                if (!routeHtml) routeHtml = `<div class="text-gray-400">無路程紀錄</div>`;
+                const publicTransportSum = (record.hsrCost || 0) + (record.trainCost || 0);
+
+                row.innerHTML = `
+                            <td class="py-4 px-6">${record.date}</td>
+                            <td class="py-4 px-6 font-medium text-gray-900">${record.description}</td>
+                            <td class="py-4 px-6">${routeHtml}</td>
+                            <td class="py-4 px-6 text-right">${record.transportType || '無'}: NT$ ${(record.transportCost
+                        || 0).toLocaleString()}</td>
+                            <td class="py-4 px-6 text-right">${(record.lodgingFee || 0).toLocaleString()}</td>
+                            <td class="py-4 px-6 text-right">${(record.miscFee || 0).toLocaleString()}</td>
+                            <td class="py-4 px-6 text-right font-semibold">${record.totalCost.toLocaleString()}</td>
+                            <td class="py-4 px-6 text-center">
+                                <button class="delete-btn text-red-600 hover:text-red-900 font-medium"
+                                    data-id="${record.id}">刪除</button>
+                            </td>
+                            `;
+                recordsBody.appendChild(row);
+            });
+            grandTotalCell.textContent = `NT$ ${grandTotal.toLocaleString()}`;
+        }
+
+        function deleteRecord(recordId) {
+            travelRecords = travelRecords.filter(r => r.id !== recordId);
+            renderRecords();
+        }
+
+        function clearAllRecords() {
+            travelRecords = [];
+            renderRecords();
+        }
+
+        function clearInputFields() {
+            document.getElementById('description').value = '';
+            //document.getElementById('start2').value = '';
+            //document.getElementById('end2').value = '';
+
+            // Clear coordinates and status texts
+
+
+            document.getElementById('transport-cost-toggle').checked = true;
+            document.getElementById('transport-section').classList.remove('hidden');
+            document.getElementById('transport-section').style.display = 'grid';
+            document.getElementById('transport-type').value = '計程車';
+            document.getElementById('transport-cost').value = '0';
+
+            document.getElementById('misc-fee-toggle').checked = false;
+            document.getElementById('misc-fee-section').classList.add('hidden');
+            document.getElementById('misc-fee-section').style.display = 'none';
+            document.getElementById('misc-fee-cost').value = '0';
+
+            document.getElementById('lodging-fee-toggle').checked = false;
+            document.getElementById('lodging-fee-section').classList.add('hidden');
+            document.getElementById('lodging-fee-section').style.display = 'none';
+            document.getElementById('lodging-fee-cost').value = '0';
+
+
+            document.getElementById('travel-date').valueAsDate = new Date();
+            document.getElementById('results-preview').classList.remove('show');
+            currentCalculation = null;
+        }
+
+        function exportToCSV() {
+            if (travelRecords.length === 0) return alert('沒有紀錄可供匯出。');
+            const headers = [
+                'id', 'date', 'description', 'route', 'transportType', 'transportCost', 'lodgingFee', 'miscFee',
+                'isFromHome', 'totalCost'
+            ];
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF" + headers.join(',') + '\n';
+            travelRecords.forEach(r => {
+                const startDisplay = simplifyAddress(r.leg1.start || (r.leg2 ? r.leg2.start : ''), r.isFromHome);
+                const endDisplay = simplifyAddress((r.leg2 ? r.leg2.end : '') || r.leg1.end);
+                let routeText = `${startDisplay} → ${endDisplay}`;
+                if (r.leg2 && r.leg2.start) {
+                    routeText += ` | ${simplifyAddress(r.leg2.start)} → ${simplifyAddress(r.leg2.end)}`;
+                }
+
+                const row = [
+                    r.id, r.date, `"${r.description}"`, `"${routeText}"`,
+                    `"${r.transportType || '無'}"`, r.transportCost || 0, r.lodgingFee || 0, r.miscFee || 0,
+                    r.isFromHome ? 1 : 0, r.totalCost
+                ].join(',');
+                csvContent += row + '\n';
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            const currentDate = new Date().toISOString().slice(0, 10);
+            link.setAttribute("download", `差旅費用紀錄 - ${currentDate}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+
+        function handleCSVImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const text = e.target.result;
+                const lines = text.split('\n').filter(line => line.trim() !== '');
+                if (lines.length <= 1) { showError('檔案為空或格式不符。'); return; }
+                const headers = lines[0].split(',').map(h => h.trim());
+                const headerMap = headers.reduce((obj, h, i) => { obj[h] = i; return obj; }, {});
+                if (!('id' in headerMap && 'totalCost' in headerMap)) { showError('匯入失敗：CSV 檔案缺少必要欄位。'); return; }
+
+                const importedRecords = [];
+                try {
+                    for (let i = 1; i < lines.length; i++) {
+                        const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.replace(/^"|"$/g, ''));
+                        if (values.length !== headers.length) continue;
+
+                        const routeStr = values[headerMap['route']] || '';
+                        let leg1 = { start: '', end: '', distance: 0, cost: 0 };
+                        let leg2 = { start: '', end: '', distance: 0, cost: 0 };
+
+                        if (routeStr) {
+                            const splitRegex = /[→]|->|>/;
+                            const legs = routeStr.split('|').map(s => s.trim());
+                            if (legs[0]) {
+                                const parts = legs[0].split(splitRegex).map(s => s.trim());
+                                leg1.start = parts[0] || '';
+                                leg1.end = parts[1] || '';
+                            }
+                            if (legs[1]) {
+                                const parts = legs[1].split(splitRegex).map(s => s.trim());
+                                leg2.start = parts[0] || '';
+                                leg2.end = parts[1] || '';
+                            }
+                        }
+
+                        const record = {
+                            id: parseInt(values[headerMap['id']], 10) || Date.now() + i,
+                            date: values[headerMap['date']],
+                            description: values[headerMap['description']],
+                            leg1: leg1,
+                            leg2: leg2,
+                            transportType: values[headerMap['transportType']] || '無',
+                            transportCost: parseInt(values[headerMap['transportCost']], 10) || 0,
+                            lodgingFee: parseInt(values[headerMap['lodgingFee']], 10) || 0,
+                            miscFee: parseInt(values[headerMap['miscFee']], 10) || 0,
+                            isFromHome: values[headerMap['isFromHome']] === '1',
+                            totalCost: parseInt(values[headerMap['totalCost']], 10) || 0
+                        };
+                        importedRecords.push(record);
+                    }
+                    travelRecords.push(...importedRecords);
+                    renderRecords();
+                } catch (err) { showError('匯入失敗：' + err.message); }
+            };
+            reader.readAsText(file);
+            event.target.value = null;
+        }
+
+        function generateReport() {
+
+
+
+            if (travelRecords.length === 0) {
+                let answer = confirm('沒有紀錄可供產生報表，是否繼續產生空白報表？');
+                if (!answer) {
+
+                    return;
+                }
+                else {
+                    document.getElementById('report-job-title').value = '';
+                    document.getElementById('report-name').value = '';
+                    document.getElementById('report-trip-location').value = '';
+                    document.getElementById('report-trip-reason').value = '';
+                    document.getElementById('report-trip-start').value = '';
+                    document.getElementById('report-trip-end').value = '';
+
+
+                }
+            }
+
+            const contentDiv = document.getElementById('report-modal-content');
+            let totalLodgingFee = 0;
+            let totalMiscFee = 0;
+            let totalTransportCost = 0;
+            let grandTotal = 0;
+            let tableRows = '';
+            for (let i = 0; i < 6; i++) {
+                const r = travelRecords[i]; if (r) {
+                    let
+                        displayMonth = '', displayDay = ''; if (r.date) {
+                            const parsedDate = new
+                                Date(r.date); if (!isNaN(parsedDate.getTime())) {
+                                    displayMonth = parsedDate.getMonth() + 1; displayDay = parsedDate.getDate();
+                                }
+                        }
+                    totalLodgingFee += r.lodgingFee || 0;
+                    totalMiscFee += r.miscFee || 0;
+                    const tCost = r.transportCost || 0;
+                    totalTransportCost += tCost;
+                    grandTotal += r.totalCost;
+                    const leg1Start = r.leg1 &&
+                        r.leg1.start ? r.leg1.start : ''; const leg1End = r.leg1 && r.leg1.end ?
+                            r.leg1.end : ''; const leg2Start = (r.leg2 && r.leg2.start) ? r.leg2.start : '';
+                    const leg2End = (r.leg2 && r.leg2.end) ? r.leg2.end : ''; const
+                        startDisplay = simplifyAddress(leg1Start || leg2Start, r.isFromHome); const
+                            finalEndDisplay = simplifyAddress(leg2End || leg1End); tableRows += ` <tr
+                                        class="text-center">
+                                        <td>${displayMonth}</td>
+                                        <td>${displayDay}</td>
+                                        <td>${startDisplay}→${finalEndDisplay}</td>
+                                        <td class="text-left px-2">${r.description}</td>
+                                        <td>${r.transportType || '無'}</td>
+                                        <td>${tCost > 0 ? tCost.toLocaleString() : ''}</td>
+                                        <td>${r.lodgingFee > 0 ? r.lodgingFee.toLocaleString() : ''}</td>
+                                        <td>${r.miscFee > 0 ? r.miscFee.toLocaleString() : ''}</td>
+                                        <td>${r.totalCost.toLocaleString()}</td>
+                                        <td></td>
+                                        </tr>`;
+                } else {
+                    tableRows += `<tr>
+                                            <td>&nbsp;</td>
+                                            <td></td>
+                                            <td></td>
+                                            <td></td>
+                                            <td></td>
+                                            <td></td>
+                                            <td></td>
+                                            <td></td>
+                                            <td></td>
+                                            <td></td>
+                                        </tr>`;
+                }
+            }
+            const currentYear = new Date().getFullYear();
+            const currentMonth = new Date().getMonth() + 1;
+            const inputRocYear = document.getElementById('report-roc-year').value ||
+                (currentYear - 1911);
+            const inputMonthStart = document.getElementById('report-month-start').value ||
+                currentMonth;
+            const inputMonthEnd = document.getElementById('report-month-end').value ||
+                inputMonthStart;
+            let monthDisplay = `${inputMonthStart} 月份`;
+            if (inputMonthStart !== inputMonthEnd) monthDisplay = `${inputMonthStart} 月 至
+                                        ${inputMonthEnd} 月份`;
+
+            const reportJobTitle = document.getElementById('report-job-title').value || '';
+            const reportName = document.getElementById('report-name').value || '';
+            const reportTripReason = document.getElementById('report-trip-reason').value ||
+                '';
+            const reportTripLocation = document.getElementById('report-trip-location').value
+                || '';
+            const reportTripStartStr = document.getElementById('report-trip-start').value;
+            const reportTripEndStr = document.getElementById('report-trip-end').value;
+            const reportTripStart = formatROCDate(reportTripStartStr);
+            const reportTripEnd = formatROCDate(reportTripEndStr);
+            const reportReceiptCount = document.getElementById('report-receipt-count').value
+                || '0';
+
+            let dayCountDisplay = '';
+            if (reportTripStartStr && reportTripEndStr) {
+                const start = new Date(reportTripStartStr);
+                const end = new Date(reportTripEndStr);
+                if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                    const diffTime = Math.abs(end - start);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                    dayCountDisplay = ` 共計 ${diffDays} 日`;
+                }
+            }
+
+            contentDiv.innerHTML = `
+                                        <div class="text-center space-y-2 mb-4">
+                                            <h2 class="text-2xl font-bold">${SCHOOL_NAME}</h2>
+                                            <h3 class="text-xl font-bold">出差旅費報告表</h3>
+                                        </div>
+
+
+
+                                        <table class="w-full border-collapse text-sm mb-4">
+                                            <tr class="text-left font-bold">
+                                                <td class="w-24 bg-gray-50">職別</td>
+                                                <td>${reportJobTitle}</td>
+                                                <td class="w-24 bg-gray-50">姓名</td>
+                                                <td class="w-24 bg-gray-50">${reportName}</td>
+                                            </tr>
+                                            <tr class="text-left font-bold">
+                                                <td class="bg-gray-50">出差事由</td>
+                                                <td>${reportTripReason}</td>
+                                                <td class="bg-gray-50">出差地點</td>
+                                                <td>${reportTripLocation}</td>
+                                            </tr>
+                                            <tr class="text-left font-bold">
+                                                <td class="bg-gray-50">出差日期</td>
+                                                <td colspan="3">中華民國${reportTripStart !== '' ? reportTripStart : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;年&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;月&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;日'}起 至
+                                                    ${reportTripEnd !== '' ? reportTripEnd : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;年&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;月&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;日'}止
+                                                    ${dayCountDisplay !== '' ? dayCountDisplay : '共計 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;日'}
+                                                    附單據：${reportReceiptCount > 0 ? reportReceiptCount : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; '}張</td>
+                                            </tr>
+                                        </table>
+                                        <table class="w-full border-collapse text-sm">
+                                            <thead>
+                                                <tr class="text-center font-bold">
+                                                    <td colspan="2">日期</td>
+                                                    <td rowspan="2" class="w-24">起訖地點</td>
+                                                    <td rowspan="2" class="w-48">工作記要</td>
+                                                    <td class="w-14" rowspan="2">交通<br>工具</td>
+                                                    <td rowspan="2" class="w-24">金額</td>
+                                                    <td rowspan="2" class="w-24">住宿費</td>
+                                                    <td rowspan="2" class="w-24">雜費</td>
+                                                    <td rowspan="2" class="w-24">總計</td>
+                                                    <td rowspan="2" class="w-24">備註</td>
+                                                </tr>
+                                                <tr class="text-center font-bold">
+                                                    <td class="w-10">月</td>
+                                                    <td class="w-10">日</td>
+
+                                                </tr>
+
+                                            </thead>
+                                            <tbody>${tableRows}</tbody>
+                                            <tfoot>
+                                                <tr class="text-center font-bold">
+                                                    <td colspan="2">合 計</td>
+                                                    <td></td>
+                                                    <td></td>
+                                                    <td></td>
+                                                    <td>${totalTransportCost > 0 ? totalTransportCost.toLocaleString() : ''}</td>
+                                                    <td>${totalLodgingFee > 0 ? totalLodgingFee.toLocaleString() : ''}
+                                                    </td>
+                                                    <td>${totalMiscFee > 0 ? totalMiscFee.toLocaleString() : ''}</td>
+                                                    <td>${grandTotal > 0 ? grandTotal.toLocaleString() : ''}</td>
+                                                    <td></td>
+                                                </tr>
+                                                <tr>
+                                                    <td colspan="10" class="text-left align-top p-2"
+                                                        style="min-height: 4em; vertical-align: top;">
+                                                        茲收到出差旅費&nbsp;&nbsp;新台幣 <span
+                                                            class="font-bold">${grandTotal > 0 ? numberToChinese2(grandTotal) : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 拾萬&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;萬&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;仟&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;百&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;拾&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;元整'}</span> 
+                                                         <span class="font-bold">${grandTotal > 0 ? '(NT$' + grandTotal.toLocaleString() + '元整)' : ''}</span>
+
+                                                        <br>具領人：&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(${formatROCDate(new
+                Date().toISOString().split('T')[0])})
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                        <div class="flex justify-between text-sm mt-4 pt-4">
+                                            <span>核准主管：</span>
+                                            <span>會計：</span>
+                                            <span>出納：</span>
+                                            <span>出差人：&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                                        </div>
+                                        `;
+            document.getElementById('report-modal').classList.remove('hidden');
+        }
+
+        async function takeScreenshot() {
+            const screenshotBtn = document.getElementById('screenshot-btn');
+            const originalBtnContent = screenshotBtn.innerHTML;
+            screenshotBtn.disabled = true;
+            screenshotBtn.innerHTML = `<svg class="animate-spin h-5 w-5"
+                                            xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                                stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor"
+                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                            </path>
+                                        </svg>`;
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            try {
+                const canvas = await html2canvas(document.getElementById('capture-area'), {
+                    useCORS: true, allowTaint: true, scale: 1.5
+                });
+                const link = document.createElement('a');
+                link.download = `差旅費用紀錄 - ${new Date().toISOString().slice(0, 10)}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } catch (err) { showError('截圖失敗。'); }
+            finally {
+                screenshotBtn.disabled = false; screenshotBtn.innerHTML =
+                    originalBtnContent;
+            }
+        }
+
+        function showError(message) {
+            const errorMessageDiv = document.getElementById('error-message');
+            errorMessageDiv.textContent = message;
+            errorMessageDiv.classList.toggle('hidden', !message);
+        }
+    </script>
+</body>
+
+</html>
