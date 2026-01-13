@@ -375,6 +375,7 @@
                 <div class="flex flex-wrap gap-4 justify-between items-center mb-4">
                     <h2 class="text-xl font-bold text-gray-700">差旅紀錄列表</h2>
                     <div class="flex flex-wrap gap-2 items-center">
+                        <!--
                         <div class="flex items-center gap-1 text-sm">
                             <label for="report-roc-year">報表年份(民國):</label>
                             <input type="number" id="report-roc-year"
@@ -386,6 +387,7 @@
                             <input type="number" id="report-month-end" min="1" max="12"
                                 class="w-16 px-2 py-1 border border-gray-300 rounded-md shadow-sm text-sm">
                         </div>
+                        -->
                         <button id="generate-report-btn"
                             class="bg-sky-500 text-white text-sm font-bold py-2 px-4 rounded-lg hover:bg-sky-600 custom-btn">產生報支清單</button>
                         <button id="import-csv-btn"
@@ -493,11 +495,11 @@
             document.getElementById('travel-date').valueAsDate = new Date();
 
             // Set default report date
-            const currentYear = new Date().getFullYear();
-            const currentMonth = new Date().getMonth() + 1;
-            document.getElementById('report-roc-year').value = currentYear - 1911;
-            document.getElementById('report-month-start').value = currentMonth;
-            document.getElementById('report-month-end').value = currentMonth;
+            //const currentYear = new Date().getFullYear();
+            //const currentMonth = new Date().getMonth() + 1;
+            //document.getElementById('report-roc-year').value = currentYear - 1911;
+            //document.getElementById('report-month-start').value = currentMonth;
+            //document.getElementById('report-month-end').value = currentMonth;
         }
 
         function setPointData(type, lat, lng, statusText) {
@@ -1035,6 +1037,16 @@
 
 
                 }
+
+            }
+
+            if (travelRecords.length > 0) {
+                const startDate = document.getElementById('report-trip-start').value;
+                const endDate = document.getElementById('report-trip-end').value;
+                if (startDate && endDate && endDate < startDate) {
+                    alert('出差日期迄日不可早於起日');
+                    return;
+                }
             }
 
             const contentDiv = document.getElementById('report-modal-content');
@@ -1090,17 +1102,17 @@
                                         </tr>`;
                 }
             }
-            const currentYear = new Date().getFullYear();
-            const currentMonth = new Date().getMonth() + 1;
-            const inputRocYear = document.getElementById('report-roc-year').value ||
-                (currentYear - 1911);
-            const inputMonthStart = document.getElementById('report-month-start').value ||
-                currentMonth;
-            const inputMonthEnd = document.getElementById('report-month-end').value ||
-                inputMonthStart;
-            let monthDisplay = `${inputMonthStart} 月份`;
-            if (inputMonthStart !== inputMonthEnd) monthDisplay = `${inputMonthStart} 月 至
-                                        ${inputMonthEnd} 月份`;
+            //const currentYear = new Date().getFullYear();
+            //const currentMonth = new Date().getMonth() + 1;
+            // const inputRocYear = document.getElementById('report-roc-year').value ||
+            //     (currentYear - 1911);
+            //const inputMonthStart = document.getElementById('report-month-start').value ||
+            //    currentMonth;
+            //const inputMonthEnd = document.getElementById('report-month-end').value ||
+            //    inputMonthStart;
+            //let monthDisplay = `${inputMonthStart} 月份`;
+            //if (inputMonthStart !== inputMonthEnd) monthDisplay = `${inputMonthStart} 月 至
+            //${inputMonthEnd} 月份`;
 
             const reportJobTitle = document.getElementById('report-job-title').value || '';
             const reportName = document.getElementById('report-name').value || '';
