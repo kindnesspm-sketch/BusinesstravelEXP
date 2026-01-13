@@ -298,7 +298,7 @@
                                 <input id="lodging-fee-toggle" type="checkbox"
                                     class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                                 <label for="lodging-fee-toggle"
-                                    class="ml-2 block text-sm font-medium text-gray-900">是否申請住宿費？</label>
+                                    class="ml-2 block text-sm font-medium text-gray-900">是否申請旅宿費？</label>
                             </div>
                         </div>
 
@@ -715,17 +715,59 @@
 
             const isFromHome = false;
 
-            const transportType = document.getElementById('transport-type').value;
-            const transportCost = parseInt(document.getElementById('transport-cost').value, 10) || 0;
-            const applyMiscFee = document.getElementById('misc-fee-toggle').checked;
-            const miscFee = applyMiscFee ? (parseInt(document.getElementById('misc-fee-cost').value, 10)
-                || 0) : 0;
-            const applyLodgingFee = document.getElementById('lodging-fee-toggle').checked;
-            const lodgingFee = applyLodgingFee ?
-                (parseInt(document.getElementById('lodging-fee-cost').value, 10) || 0) : 0;
-
             const start2 = document.getElementById('start2').value || '';
             const end2 = document.getElementById('end2').value || '';
+
+            if (!start2.trim() || !end2.trim()) {
+                alert('請輸入起點和終點');
+                calculateBtn.innerText = originalBtnText;
+                calculateBtn.disabled = false;
+                return;
+            }
+
+
+
+            const transportType = document.getElementById('transport-type').value;
+            const transportCostInput = document.getElementById('transport-cost');
+            const transportCostValue = transportCostInput.value;
+            const transportCost = parseInt(transportCostValue, 10) || 0;
+
+            const applyTransportCost = document.getElementById('transport-cost-toggle').checked;
+
+            if (applyTransportCost && (transportCostValue.trim() === '' || transportCostValue.trim() <= '0')) {
+                alert('請輸入交通費用');
+                calculateBtn.innerText = originalBtnText;
+                calculateBtn.disabled = false;
+                transportCostInput.focus();
+                return;
+            }
+
+            const applyMiscFee = document.getElementById('misc-fee-toggle').checked;
+            const miscFeeInput = document.getElementById('misc-fee-cost');
+            const miscFeeValue = miscFeeInput.value;
+            const miscFee = applyMiscFee ? (parseInt(miscFeeValue, 10) || 0) : 0;
+
+            if (applyMiscFee && (miscFeeValue.trim() === '' || miscFeeValue.trim() <= '0')) {
+                alert('請輸入雜費金額');
+                calculateBtn.innerText = originalBtnText;
+                calculateBtn.disabled = false;
+                miscFeeInput.focus();
+                return;
+            }
+            const applyLodgingFee = document.getElementById('lodging-fee-toggle').checked;
+            const lodgingFeeInput = document.getElementById('lodging-fee-cost');
+            const lodgingFeeValue = lodgingFeeInput.value;
+            const lodgingFee = applyLodgingFee ?
+                (parseInt(lodgingFeeValue, 10) || 0) : 0;
+
+            if (applyLodgingFee && (lodgingFeeValue.trim() === '' || lodgingFeeValue.trim() <= '0')) {
+                alert('請輸入旅宿費金額');
+                calculateBtn.innerText = originalBtnText;
+                calculateBtn.disabled = false;
+                lodgingFeeInput.focus();
+                return;
+            }
+
 
             try {
                 currentCalculation = {
